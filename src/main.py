@@ -4,6 +4,9 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer
 from PyQt6.QtMultimedia import QMediaPlayer
 
+import SpoutGL
+import OpenGL.GL as GL
+
 from audio_manager import AudioManager
 from gui import GUI
 from gan_manager import GANManager
@@ -16,7 +19,7 @@ FRAMERATE = FPS.FPS_30
 # Set sample window size to retrieve real time from the audio
 SAMPLE_WINDOW_SIZE = SampleWindowSize.WS_1024
 
-MODEL_PATH = './resources/models/light_gan_test/model_3.pt'
+MODEL_PATH = './resources/models/light_gan_test/model_5.pt'
 USE_GPU = False
 EVAL_MODE = False
 
@@ -39,6 +42,11 @@ class VisualizerApp:
         if self.gan_manager is None:
             return
         
+        self.spout_sender = SpoutGL.SpoutSender()
+        self.spout_name = "GAN_Visualizer_TD"
+        self.spout_sender.setSenderName(self.spout_name)
+        print(f"[Spout] Sender avviato con nome: {self.spout_name}")
+        
         # Configura il timer loop
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_loop)
@@ -59,8 +67,19 @@ class VisualizerApp:
         if final_image is not None:
             self.window.set_image(final_image)
 
-        # TODO: Invia i dati a TouchDesigner
+            height, width, _ = final_image.shape
 
+            # Spout/OpenGL si aspettano un formato RGB. 
+            # Se la tua GAN genera BGR (standard OpenCV), de-commenta la riga seguente:
+            # final_image = cv2.cvtColor(final_image, cv2.COLOR_BGR2RGB)
+
+            # invia l'immagine al canale spout
+            self.spout_sender.sendImage(final_image.tobytes(), width, height, GL.GL_RGB, False, 0)
+
+    def __del__(self):
+        # Rilascia la memoria di Spout quando l'applicazione si chiude
+        if hasattr(self, 'spout_sender'):
+            self.spout_sender.releaseSender()
 
 
 def main():
