@@ -8,4 +8,4 @@ torchaudio == 2.9.1+cu126
 kornia == 0.8.2
 einops == 0.8.1
 PyOpenGL == 3.1.10
-SpoutGL == 0.1.1
+./libs/spoutgl-0.1.1-cp314-cp314-win_amd64.whl

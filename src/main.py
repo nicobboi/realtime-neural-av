@@ -1,5 +1,4 @@
 import sys
-import numpy as np
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer
 from PyQt6.QtMultimedia import QMediaPlayer
