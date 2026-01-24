@@ -18,6 +18,7 @@ SAMPLE_WINDOW_SIZE = SampleWindowSize.WS_1024
 
 MODEL_PATH = './resources/models/light_gan_test/model_3.pt'
 USE_GPU = False
+EVAL_MODE = False
 
 ########################
 
@@ -31,7 +32,8 @@ class VisualizerApp:
             model_path=MODEL_PATH, 
             image_size=256, 
             latent_dim=256,
-            use_gpu=USE_GPU
+            use_gpu=USE_GPU,
+            eval_mode=EVAL_MODE
         )
 
         if self.gan_manager is None:
@@ -53,10 +55,7 @@ class VisualizerApp:
         # Recupero un chunk audio di una finestra temporale
         chunk = self.audio_system.get_current_chunk(window_size=SAMPLE_WINDOW_SIZE)
 
-        # test con calcolo volume real time 
-        volume = np.linalg.norm(chunk)
-
-        final_image = self.gan_manager.generate_image(audio_volume=volume)
+        final_image = self.gan_manager.generate_image(chunk)
         if final_image is not None:
             self.window.set_image(final_image)
 

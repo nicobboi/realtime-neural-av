@@ -6,7 +6,7 @@ from utils.lightweight_gan_cust import Generator
 
 class GANManager:
     # Aggiungiamo il parametro use_gpu=True come default
-    def __init__(self, model_path, image_size=256, latent_dim=256, use_gpu=True):
+    def __init__(self, model_path, image_size=256, latent_dim=256, use_gpu=True, eval_mode=True):
         self.model_path = model_path
         self.image_size = image_size
         self.latent_dim = latent_dim
@@ -24,9 +24,14 @@ class GANManager:
                 print("🐌 GAN Manager: Modalità CPU forzata.")
 
         # Carica il modello
-        self.model = self._load_model()
+        self.model = self._load_model(eval_mode=eval_mode)
 
-    def _load_model(self):
+        # Posizione attuale nello spazio (da dove generiamo l'immagine)
+        self.current_z = torch.randn(1, self.latent_dim).to(self.device)
+        # Posizione obiettivo verso cui ci stiamo muovendo
+        self.target_z = torch.randn(1, self.latent_dim).to(self.device)
+
+    def _load_model(self, eval_mode=True):
         # ... (Il resto del codice rimane uguale, userà self.device automaticamente) ...
         # Copia pure il metodo _load_model e generate_image dal messaggio precedente
         # Assicurati solo che _load_model usi self.device come faceva prima
@@ -63,7 +68,11 @@ class GANManager:
 
             model.load_state_dict(gen_weights, strict=False)
             model.to(self.device)
-            model.train() 
+
+            if eval_mode:
+                model.eval()
+            else:
+                model.train() 
             
             print("✅ Modello caricato e pronto!")
             return model
@@ -72,18 +81,46 @@ class GANManager:
             print(f"❌ Errore critico nel caricamento: {e}")
             return model
 
-    def generate_image(self, audio_volume) -> np.uint8:
-        if self.model is None:
+    def generate_image(self, audio_chunk) -> np.uint8:
+        if self.model is None or len(audio_chunk) == 0:
             return None
 
         with torch.no_grad():
-            boosted_vol = audio_volume * 5.0 
-            noise_amp = 0.5 + min(boosted_vol, 1.5) 
-
-            noise = torch.randn(1, self.latent_dim).to(self.device) * noise_amp
+            # 1. FEATURE EXTRACTION DALL'AUDIO
+            # Calcoliamo il volume medio del chunk
+            volume = np.linalg.norm(audio_chunk) / np.sqrt(len(audio_chunk))
             
-            generated_tensor = self.model(noise)
+            # 2. LOGICA DI NAVIGAZIONE (LATENT WALK)
+            # La velocità di movimento dipende dal volume.
+            # - base_speed: velocità minima anche in silenzio (morphing lento continuo)
+            # - dynamic_speed: picco di velocità dato dalla musica
+            base_speed = 0.005 
+            dynamic_speed = min(volume * 0.1, 0.5) # Limita il passo massimo
+            step = base_speed + dynamic_speed
 
+            # Interpolazione lineare (Lerp) dal punto attuale verso il target
+            self.current_z = (1 - step) * self.current_z + step * self.target_z
+
+            # 3. GESTIONE TARGET (Cambio di direzione)
+            # Se siamo arrivati vicini al target, ne scegliamo uno nuovo a caso
+            distance_to_target = torch.norm(self.target_z - self.current_z)
+            if distance_to_target < 0.2:
+                self.target_z = torch.randn(1, self.latent_dim).to(self.device)
+
+            # 4. GESTIONE IMPULSI (Opzionale per effetto "Kick/Cassa")
+            # Se c'è un forte picco audio, aggiungiamo un rumore istantaneo
+            # che deforma l'immagine sul colpo di batteria
+            if volume > 0.5:
+                kick_impact = torch.randn(1, self.latent_dim).to(self.device) * volume * 0.2
+                self.current_z += kick_impact
+
+            # Normalizzazione (Best practice per non far degradare l'immagine delle GAN nel tempo)
+            self.current_z = self.current_z / self.current_z.norm() * np.sqrt(self.latent_dim)
+
+            # 5. GENERAZIONE DELL'IMMAGINE
+            generated_tensor = self.model(self.current_z)
+
+            # --- Formattazione Output (Rimane identica) ---
             if torch.isnan(generated_tensor).any():
                 generated_tensor = torch.nan_to_num(generated_tensor, nan=0.0)
 
