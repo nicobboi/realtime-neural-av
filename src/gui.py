@@ -3,19 +3,21 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QLabel, QFileDialog, QSlider, QStyle)
 from PyQt6.QtCore import Qt
 from PyQt6.QtMultimedia import QMediaPlayer
+from PyQt6.QtGui import QImage, QPixmap
+import numpy as np
 
 class GUI(QWidget):
-    def __init__(self, audio_manager):
+    def __init__(self, audio_manager, img_size=256):
         super().__init__()
         self.audio = audio_manager
         
         # Flag per evitare conflitti quando l'utente trascina lo slider
         self.user_is_seeking = False 
         
-        self.setup_ui()
+        self.setup_ui(img_size=img_size)
         self.connect_signals()
 
-    def setup_ui(self):
+    def setup_ui(self, img_size=256):
         self.setWindowTitle("Audio Player")
         self.setGeometry(200, 200, 500, 250)
         self.setStyleSheet("""
@@ -34,6 +36,11 @@ class GUI(QWidget):
         self.lbl_title = QLabel("Seleziona un file audio...")
         self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.lbl_title)
+
+        self.lbl_image = QLabel("In attesa dell'audio...")
+        self.lbl_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_image.setMinimumSize(img_size, img_size)
+        layout.addWidget(self.lbl_image)
 
         # Slider di avanzamento
         self.slider = QSlider(Qt.Orientation.Horizontal)
@@ -85,6 +92,20 @@ class GUI(QWidget):
         self.audio.player.mediaStatusChanged.connect(self.handle_media_status)
 
     ### Logica GUI ###
+
+    def set_image(self, img_array: np.ndarray):
+        if img_array is None:
+            return
+        
+        # Il gan_manager restituisce un'immagine con forma (H, W, 3) e tipo uint8
+        height, width, channels = img_array.shape
+        bytes_per_line = channels * width
+        
+        # Convertiamo l'array numpy in QImage (formato RGB888)
+        q_img = QImage(img_array.tobytes(), width, height, bytes_per_line, QImage.Format.Format_RGB888)
+        
+        # Applichiamo l'immagine alla Label
+        self.lbl_image.setPixmap(QPixmap.fromImage(q_img))
 
     def open_file_dialog(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Apri Audio", "", "Audio (*.mp3 *.wav *.ogg *.flac)")
