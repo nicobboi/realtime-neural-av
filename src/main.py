@@ -11,6 +11,8 @@ from gui import GUI
 from gan_manager import GANManager
 from utils.custom_enum import FPS, SampleWindowSize
 
+import utils.logutils as log
+
 ### CUSTOM VARIABLES ###
 
 # Set Visualizer FPS
@@ -21,6 +23,14 @@ SAMPLE_WINDOW_SIZE = SampleWindowSize.WS_1024
 MODEL_PATH = './resources/models/light_gan_test/model_5.pt'
 USE_GPU = False
 EVAL_MODE = False
+
+def log_constants():
+    log.info("Starting application with the following constants:")
+    log.info(f"FRAMERATE: {FRAMERATE}")
+    log.info(f"SAMPLE_WINDOW_SIZE: {SAMPLE_WINDOW_SIZE}")
+    log.info(f"MODEL_PATH: {MODEL_PATH}")
+    log.info(f"USE_GPU: {USE_GPU}")
+    log.info(f"EVAL_MODE: {EVAL_MODE}")
 
 ########################
 
@@ -37,14 +47,11 @@ class VisualizerApp:
             use_gpu=USE_GPU,
             eval_mode=EVAL_MODE
         )
-
-        if self.gan_manager is None:
-            return
         
         self.spout_sender = SpoutGL.SpoutSender()
         self.spout_name = "GAN_Visualizer_TD"
         self.spout_sender.setSenderName(self.spout_name)
-        print(f"[Spout] Sender avviato con nome: {self.spout_name}")
+        log.info(f"Spout Sender avviato con nome: {self.spout_name}")
         
         # Configura il timer loop
         self.timer = QTimer()
@@ -83,8 +90,14 @@ class VisualizerApp:
 
 def main():
     app = QApplication(sys.argv)
-    controller = VisualizerApp()
-    sys.exit(app.exec())
+    log_constants()
+    try:
+        controller = VisualizerApp()
+        sys.exit(app.exec())
+    except Exception as e:
+        log.error(e)
+    finally:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

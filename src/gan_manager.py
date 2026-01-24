@@ -2,6 +2,7 @@ import os
 import torch
 import numpy as np
 from utils.lightweight_gan_cust import Generator
+import utils.logutils as log
 
 
 class GANManager:
@@ -15,13 +16,13 @@ class GANManager:
         # Usa CUDA solo se l'utente lo vuole E se è disponibile
         if use_gpu and torch.cuda.is_available():
             self.device = torch.device('cuda')
-            print("🚀 GAN Manager: Modalità GPU (CUDA) attivata.")
+            log.info("GAN Manager: Modalità GPU (CUDA) attivata.")
         else:
             self.device = torch.device('cpu')
             if use_gpu and not torch.cuda.is_available():
-                print("⚠️ GAN Manager: GPU richiesta ma non trovata. Fallback su CPU.")
+                log.warning("GAN Manager: GPU richiesta ma non trovata. Fallback su CPU.")
             else:
-                print("🐌 GAN Manager: Modalità CPU forzata.")
+                log.info("GAN Manager: Modalità CPU forzata.")
 
         # Carica il modello
         self.model = self._load_model(eval_mode=eval_mode)
@@ -35,7 +36,7 @@ class GANManager:
         # ... (Il resto del codice rimane uguale, userà self.device automaticamente) ...
         # Copia pure il metodo _load_model e generate_image dal messaggio precedente
         # Assicurati solo che _load_model usi self.device come faceva prima
-        print("Caricamento modello in corso...")
+        log.info("Caricamento modello in corso...")
         
         model = Generator(
             image_size=self.image_size, 
@@ -43,8 +44,8 @@ class GANManager:
         )
 
         if not os.path.exists(self.model_path):
-            print(f"⚠️ ERRORE: File modello non trovato in {self.model_path}")
-            return model
+            raise FileExistsError(f"Il file del modello non esiste: {self.model_path}")
+            
 
         try:
             checkpoint = torch.load(self.model_path, map_location=self.device, weights_only=False)
@@ -59,12 +60,12 @@ class GANManager:
                     found_ema = True
             
             if not found_ema:
-                print("Pesi EMA non trovati, uso pesi Base (G)...")
+                log.warning("Pesi EMA non trovati, uso pesi Base (G)...")
                 for k, v in gan_weights.items():
                     if k.startswith('G.') and not k.startswith('GE.') and 'scaler' not in k:
                         gen_weights[k.replace('G.', '')] = v
             else:
-                print("Pesi EMA (GE) trovati e caricati.")
+                log.info("Pesi EMA (GE) trovati e caricati.")
 
             model.load_state_dict(gen_weights, strict=False)
             model.to(self.device)
@@ -74,11 +75,11 @@ class GANManager:
             else:
                 model.train() 
             
-            print("✅ Modello caricato e pronto!")
+            log.success("✅ Modello caricato e pronto!")
             return model
 
         except Exception as e:
-            print(f"❌ Errore critico nel caricamento: {e}")
+            log.error(f"❌ Errore critico nel caricamento: {e}")
             return model
 
     def generate_image(self, audio_chunk) -> np.uint8:

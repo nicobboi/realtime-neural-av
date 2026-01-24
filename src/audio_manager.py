@@ -4,6 +4,9 @@ import threading
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtCore import QUrl, QObject, pyqtSignal
 
+import utils.logutils as log
+
+
 class AudioManager(QObject):
     # Segnale PUBBLICO: Emesso quando tutto è pronto (per la GUI)
     decoding_finished = pyqtSignal()
@@ -50,7 +53,7 @@ class AudioManager(QObject):
         Decodifica file audio con PyDub.
         """
         try:
-            print(f"Caricamento file: {file_path}...")
+            log.info(f"Caricamento file: {file_path}...")
             
             # Carica audio con PyDub
             audio = AudioSegment.from_wav(file_path)
@@ -81,7 +84,7 @@ class AudioManager(QObject):
             self._internal_data_ready.emit(y, sr)
             
         except Exception as e:
-            print(f"Errore caricamento: {e}")
+            log.error(f"Errore caricamento: {e}")
 
     def _finalize_loading(self, data, sr):
         """
@@ -89,7 +92,7 @@ class AudioManager(QObject):
         """
         self.full_audio_data = data
         self.sample_rate = sr
-        print(f"Dati Audio Pronti! Campioni: {len(data)}, SR: {sr}")
+        log.success(f"Dati Audio Pronti! Campioni: {len(data)}, SR: {sr}")
         self.decoding_finished.emit()
 
     def get_current_chunk(self, window_size=1024):
